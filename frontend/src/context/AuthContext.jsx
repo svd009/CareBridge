@@ -1,32 +1,50 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState } from 'react'
 
-const AuthContext = createContext(null);
+const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem("medsecure_user");
-    return stored ? JSON.parse(stored) : null;
-  });
+  const [user, setUser] = useState(null)
 
-  function login(accessToken, nextUser) {
-    localStorage.setItem("medsecure_token", accessToken);
-    localStorage.setItem("medsecure_user", JSON.stringify(nextUser));
-    setUser(nextUser);
+  function login({ email, password }) {
+    if (!email || !password) {
+      return {
+        success: false,
+        message: 'Enter both your email address and password.',
+      }
+    }
+
+    const demoUser = {
+      id: 1,
+      name: 'Dr. Jordan Miller',
+      email,
+      role: 'Clinician',
+    }
+
+    setUser(demoUser)
+
+    return {
+      success: true,
+      user: demoUser,
+    }
   }
 
   function logout() {
-    localStorage.removeItem("medsecure_token");
-    localStorage.removeItem("medsecure_user");
-    setUser(null);
+    setUser(null)
   }
 
   return (
     <AuthContext.Provider value={{ user, login, logout }}>
       {children}
     </AuthContext.Provider>
-  );
+  )
 }
 
 export function useAuth() {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext)
+
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider.')
+  }
+
+  return context
 }
