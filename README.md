@@ -1,6 +1,6 @@
-# MedSecure
+# CareBridge
 
-A full-stack, HIPAA-aligned patient records portal built with React, Node.js, Express.js, and PostgreSQL.
+A full-stack, HIPAA-aligned patient records and care coordination portal built with React, Node.js, Express.js, and PostgreSQL.
 
 > This is a portfolio project that uses synthetic data only. It is not a certified HIPAA-compliant production system and must not be used to process real Protected Health Information (PHI).
 
