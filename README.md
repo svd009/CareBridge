@@ -1,52 +1,89 @@
 # CareBridge
 
-CareBridge is a secure care-coordination platform designed to help healthcare staff access patient information according to their job responsibilities while protecting sensitive clinical data.
+CareBridge is a secure care-coordination platform that enables healthcare staff to access patient records according to their job responsibilities while improving protection, accountability, and operational reliability for sensitive patient information.
 
 ## Problem
 
-Healthcare workflows require multiple staff roles to access patient records, but unrestricted access can expose protected health information and make it difficult to determine who accessed sensitive data.
+Healthcare organizations need clinicians and support staff to access patient information quickly, but unrestricted access can expose protected health information and make it difficult to review who accessed a record and why.
 
 ## Solution
 
-CareBridge provides authenticated, role-based access to patient records with multi-factor authentication, encrypted clinical notes, audit logging, request validation, and centralized API error handling.
+CareBridge provides a role-aware patient-record workflow with secure authentication, access controls, audit logging, encrypted clinical notes, bounded API responses, and a dedicated administrator audit-log interface.
 
-## Key Features
+## Features
 
-- JWT-based authentication
+- JWT authentication with short-lived access tokens
 - TOTP multi-factor authentication
 - Role-based access control for Administrator, Physician, Nurse, and Billing Specialist roles
 - AES-256-GCM field-level encryption for clinical notes
-- Patient-record access logging
-- Request validation and centralized error handling
-- PostgreSQL database running through Docker Compose
+- Audit logging for implemented authentication, patient-record, and administrative access events
+- Administrator-only audit-log dashboard with action and patient-ID filters
+- Request validation and centralized API error handling
+- Login rate limiting with HTTP 429 responses after repeated attempts
+- Pagination for patient and audit-log endpoints
+- Dockerized PostgreSQL database
+- Responsive purple-and-white CareBridge interface
 
 ## Architecture
 
-Frontend -> Express API -> PostgreSQL
+```text
+React frontend
+      |
+      | HTTPS-style API requests during local development
+      v
+Express.js API
+      |
+      | JWT verification, RBAC, validation, rate limiting, audit events
+      v
+PostgreSQL in Docker
+```
 
-Security flow:
-1. User authenticates with credentials.
-2. User completes TOTP MFA.
-3. API issues or validates a JWT.
-4. RBAC middleware checks permitted roles.
-5. Authorized requests retrieve only the necessary patient fields.
-6. Patient-record activity is logged for accountability.
+## Technology Stack
+
+| Layer | Technologies |
+|---|---|
+| Frontend | React, React Router, Axios, CSS |
+| Backend | Node.js, Express.js, Zod |
+| Authentication | JWT, bcryptjs, TOTP MFA |
+| Authorization | Role-based access control |
+| Security | Helmet, express-rate-limit, AES-256-GCM encryption |
+| Database | PostgreSQL 16 |
+| Infrastructure | Docker Compose |
 
 ## Local Setup
 
 ### Prerequisites
 
 - Node.js
-- Docker Desktop
-- Docker Compose
+- Docker Desktop and Docker Compose
 
-### Start PostgreSQL
+### 1. Start PostgreSQL
 
 ```bash
 docker compose up -d
 ```
 
-### Start the backend
+Verify that the database container is running:
+
+```bash
+docker compose ps
+```
+
+### 2. Configure environment variables
+
+Create a backend `.env` file using your local development values. Do not commit this file.
+
+```env
+PORT=5000
+FRONTEND_URL=http://localhost:5173
+DATABASE_URL=postgresql://USERNAME:PASSWORD@localhost:5432/DATABASE_NAME
+JWT_SECRET=replace-with-a-long-random-development-secret
+JWT_EXPIRES_IN=15m
+```
+
+Add encryption and TOTP variables only if your implementation requires them.
+
+### 3. Run the backend
 
 ```bash
 cd backend
@@ -54,7 +91,9 @@ npm install
 npm run dev
 ```
 
-### Start the frontend
+### 4. Run the frontend
+
+Open another terminal:
 
 ```bash
 cd frontend
@@ -62,13 +101,47 @@ npm install
 npm run dev
 ```
 
+Open the URL printed by Vite, typically `http://localhost:5173`.
+
+## API Endpoints
+
+| Method | Endpoint | Access | Purpose |
+|---|---|---|---|
+| GET | `/api/health` | Public | Service health check |
+| POST | `/api/auth/login` | Public, rate-limited | Authenticate a user |
+| GET | `/api/patients?limit=10&offset=0` | Authenticated role | Retrieve a bounded patient page |
+| GET | `/api/patients/:id` | Authenticated role | Retrieve an authorized patient record |
+| GET | `/api/audit-logs?limit=10&offset=0` | Administrator | Retrieve a bounded audit-log page |
+
+## Security Design
+
+- The API validates JWTs and applies role checks server-side.
+- Patient queries use explicit field selection rather than `SELECT *`.
+- Encrypted clinical-note storage is excluded from standard patient-list responses.
+- Login requests are rate-limited to reduce repeated password-guessing attempts.
+- Request bodies and pagination inputs are validated before database queries.
+- Audit events capture implemented actions and related metadata.
+- Administrator audit-log access is protected on the backend, not only hidden in the frontend.
+
 ## Validation Performed
 
-- Confirmed PostgreSQL container availability on localhost:5432.
-- Confirmed patient-list data loads after aligning API queries with the database schema.
-- Confirmed missing-column errors were removed by using explicit database fields.
-- Tested authentication, role access, patient retrieval, and audit events where implemented.
+- Verified Dockerized PostgreSQL connectivity through `localhost:5432`.
+- Verified patient queries against the actual PostgreSQL schema.
+- Verified patient-list and audit-log pagination with bounded `limit` and `offset` values.
+- Verified administrator access to audit logs.
+- Verified non-administrator audit-log access is rejected by the server.
+- Verified the patient dashboard, patient detail workflow, and audit-log workflow load without missing-column errors.
 
-## Security Notes
+## Screenshots
 
-CareBridge is a portfolio or educational project and is not represented as a production HIPAA-compliant healthcare system. Production deployment would require formal risk assessment, operational safeguards, secrets management, monitoring, backup and recovery procedures, access reviews, and compliance validation.
+Add screenshots here after redacting personal information, credentials, tokens, and any real patient data.
+
+- Sign-in page
+- Patient dashboard
+- Patient-detail page
+- Administrator audit-log page
+- Pagination controls
+
+## Disclaimer
+
+CareBridge is a portfolio and educational project. It is not represented as a production healthcare system or as HIPAA compliant. Production use would require formal risk assessment, legal and compliance review, secure deployment, TLS configuration, secrets management, monitoring, backup and recovery procedures, incident-response processes, and additional access-control testing.
