@@ -1,146 +1,74 @@
 # CareBridge
 
-A full-stack, HIPAA-aligned patient records and care coordination portal built with React, Node.js, Express.js, and PostgreSQL.
+CareBridge is a secure care-coordination platform designed to help healthcare staff access patient information according to their job responsibilities while protecting sensitive clinical data.
 
-> This is a portfolio project that uses synthetic data only. It is not a certified HIPAA-compliant production system and must not be used to process real Protected Health Information (PHI).
+## Problem
 
-## Features
+Healthcare workflows require multiple staff roles to access patient records, but unrestricted access can expose protected health information and make it difficult to determine who accessed sensitive data.
 
-- React frontend for secure patient-record review
-- Node.js and Express REST API
-- PostgreSQL persistence
+## Solution
+
+CareBridge provides authenticated, role-based access to patient records with multi-factor authentication, encrypted clinical notes, audit logging, request validation, and centralized API error handling.
+
+## Key Features
+
 - JWT-based authentication
-- Role-Based Access Control (RBAC) for four roles:
-  - Administrator
-  - Physician
-  - Nurse
-  - Billing Specialist
-- Time-based one-time password (TOTP) MFA
-- Patient-record access controls
-- AES-256-GCM field encryption for sensitive clinical notes
-- TLS-ready deployment configuration
-- Immutable-style audit log for patient record reads, edits, and exports
-- Request validation, centralized error handling, security headers, and rate limiting
-
-## Tech Stack
-
-| Layer | Technologies |
-| --- | --- |
-| Frontend | React, Vite, React Router, Axios |
-| Backend | Node.js, Express.js, JWT, bcrypt, Speakeasy |
-| Database | PostgreSQL |
-| Security | RBAC, MFA, AES-256-GCM, Helmet, rate limiting, audit logs |
-| DevOps | Docker, Docker Compose, environment variables |
+- TOTP multi-factor authentication
+- Role-based access control for Administrator, Physician, Nurse, and Billing Specialist roles
+- AES-256-GCM field-level encryption for clinical notes
+- Patient-record access logging
+- Request validation and centralized error handling
+- PostgreSQL database running through Docker Compose
 
 ## Architecture
 
-```text
-React Client
-    |
-    | HTTPS / REST API
-    v
-Express API
-    |
-    +-- JWT authentication
-    +-- RBAC authorization
-    +-- MFA verification
-    +-- Audit logging
-    +-- AES-256-GCM encryption
-    |
-    v
-PostgreSQL
-```
+Frontend -> Express API -> PostgreSQL
+
+Security flow:
+1. User authenticates with credentials.
+2. User completes TOTP MFA.
+3. API issues or validates a JWT.
+4. RBAC middleware checks permitted roles.
+5. Authorized requests retrieve only the necessary patient fields.
+6. Patient-record activity is logged for accountability.
 
 ## Local Setup
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js
 - Docker Desktop
-- npm
+- Docker Compose
 
-### 1. Start PostgreSQL
+### Start PostgreSQL
 
 ```bash
-docker compose up -d db
+docker compose up -d
 ```
 
-### 2. Configure the backend
+### Start the backend
 
 ```bash
 cd backend
-cp .env.example .env
 npm install
 npm run dev
 ```
 
-### 3. Configure the frontend
-
-Open a second terminal:
+### Start the frontend
 
 ```bash
 cd frontend
-cp .env.example .env
 npm install
 npm run dev
 ```
 
-The frontend runs at `http://localhost:5173` and the API runs at `http://localhost:5000`.
+## Validation Performed
 
-## Demo Accounts
-
-After running the SQL seed data, use one of the following accounts:
-
-| Role | Email | Password |
-| --- | --- | --- |
-| Administrator | admin@medsecure.local | ChangeMe123! |
-| Physician | doctor@medsecure.local | ChangeMe123! |
-| Nurse | nurse@medsecure.local | ChangeMe123! |
-| Billing Specialist | billing@medsecure.local | ChangeMe123! |
-
-For a real demo, avoid committing real passwords. Replace these accounts and credentials before publishing screenshots or hosting the project.
-
-## API Endpoints
-
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| POST | `/api/auth/login` | Validates credentials and begins MFA flow |
-| POST | `/api/auth/mfa/verify` | Verifies TOTP code and returns JWT |
-| GET | `/api/patients` | Lists records available to the authenticated user |
-| GET | `/api/patients/:id` | Retrieves an authorized patient record |
-| PUT | `/api/patients/:id` | Updates a patient record for authorized roles |
-| GET | `/api/patients/:id/export` | Exports an authorized patient record |
-| GET | `/health` | Application health check |
+- Confirmed PostgreSQL container availability on localhost:5432.
+- Confirmed patient-list data loads after aligning API queries with the database schema.
+- Confirmed missing-column errors were removed by using explicit database fields.
+- Tested authentication, role access, patient retrieval, and audit events where implemented.
 
 ## Security Notes
 
-This project implements technical controls inspired by healthcare security requirements:
-
-- Least-privilege RBAC
-- MFA for account access
-- Server-side authorization checks on each protected route
-- Audit logs for record access, modifications, and export events
-- Password hashing with bcrypt
-- JWT expiration
-- AES-256-GCM encryption for selected sensitive fields
-- TLS should be terminated through a reverse proxy or managed cloud load balancer in a deployed environment
-- Input validation and API rate limiting
-
-HIPAA compliance is organizational and requires administrative and physical safeguards, formal risk analysis, policies, training, incident response, vendor agreements, and ongoing review. This project demonstrates application-level technical safeguards only.
-
-## Future Improvements
-
-- Refresh-token rotation using secure HttpOnly cookies
-- Record-level authorization based on provider-patient assignment
-- Account lockout after repeated failed authentication attempts
-- CI pipeline with unit and integration tests
-- AWS deployment using ECS/Fargate, RDS PostgreSQL, Secrets Manager, CloudWatch, and an Application Load Balancer
-- Optional AI feature: de-identified clinical-note summarization with human approval and audit logging
-
-## Screenshots
-
-Add screenshots here after building:
-- Login and MFA screen
-- Role-specific dashboard
-- Patient record details
-- Audit log viewer
+CareBridge is a portfolio or educational project and is not represented as a production HIPAA-compliant healthcare system. Production deployment would require formal risk assessment, operational safeguards, secrets management, monitoring, backup and recovery procedures, access reviews, and compliance validation.

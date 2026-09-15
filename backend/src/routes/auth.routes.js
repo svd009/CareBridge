@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { pool } from "../config/db.js";
+import { writeAuditLog } from "../services/audit.service.js";
 
 const router = express.Router();
 
@@ -27,27 +28,6 @@ function signAccessToken(user) {
   );
 }
 
-async function writeAuditLog({ userId = null, action, req, metadata = {} }) {
-  try {
-    await pool.query(
-      `INSERT INTO audit_logs (user_id, action, ip_address, metadata)
-       VALUES ($1, $2, $3, $4)`,
-      [
-        userId,
-        action,
-        req.ip,
-        JSON.stringify({
-          method: req.method,
-          path: req.originalUrl,
-          ...metadata,
-        }),
-      ]
-    );
-  } catch (error) {
-    console.error("Failed to write audit log:", error.message);
-  }
-}
-
 router.post("/login", async (req, res, next) => {
   try {
     const { email, password } = loginSchema.parse(req.body);
@@ -55,7 +35,8 @@ router.post("/login", async (req, res, next) => {
     const result = await pool.query(
       `SELECT id, email, password_hash, role
        FROM users
-       WHERE email = $1 AND is_active = true`,
+       WHERE email = $1
+         AND is_active = true`,
       [email]
     );
 
@@ -68,7 +49,9 @@ router.post("/login", async (req, res, next) => {
       await writeAuditLog({
         action: "LOGIN_FAILED",
         req,
-        metadata: { email },
+        metadata: {
+          email,
+        },
       });
 
       return res.status(401).json({
@@ -82,6 +65,9 @@ router.post("/login", async (req, res, next) => {
       userId: user.id,
       action: "LOGIN_SUCCEEDED",
       req,
+      metadata: {
+        role: user.role,
+      },
     });
 
     return res.json({
@@ -92,7 +78,7 @@ router.post("/login", async (req, res, next) => {
       },
     });
   } catch (error) {
-    next(error);
+    return next(error);
   }
 });
 

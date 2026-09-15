@@ -1,56 +1,36 @@
-import { createContext, useContext, useState } from "react";
-import api, {
+import { createContext, useContext, useMemo, useState } from "react";
+import {
   clearAccessToken,
   setAccessToken,
-} from "../api/client.js";
+} from "../api/client";
 
 const AuthContext = createContext(null);
 
-function getSavedUser() {
+function getStoredUser() {
+  const storedUser = sessionStorage.getItem("carebridge_user");
+
+  if (!storedUser) {
+    return null;
+  }
+
   try {
-    const savedUser = sessionStorage.getItem("carebridge_user");
-    return savedUser ? JSON.parse(savedUser) : null;
+    return JSON.parse(storedUser);
   } catch {
+    sessionStorage.removeItem("carebridge_user");
     return null;
   }
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(getSavedUser);
-  const [isLoading, setIsLoading] = useState(false);
+  const [user, setUser] = useState(getStoredUser);
 
-  async function login({ email, password }) {
-    setIsLoading(true);
-
-    try {
-      const response = await api.post("/auth/login", {
-        email,
-        password,
-      });
-
-      const { accessToken, user: authenticatedUser } = response.data;
-
-      setAccessToken(accessToken);
-      sessionStorage.setItem(
-        "carebridge_user",
-        JSON.stringify(authenticatedUser)
-      );
-      setUser(authenticatedUser);
-
-      return { success: true };
-    } catch (error) {
-      clearAccessToken();
-      setUser(null);
-
-      return {
-        success: false,
-        message:
-          error.response?.data?.message ||
-          "Unable to sign in. Please try again.",
-      };
-    } finally {
-      setIsLoading(false);
-    }
+  function login({ accessToken, user: authenticatedUser }) {
+    setAccessToken(accessToken);
+    sessionStorage.setItem(
+      "carebridge_user",
+      JSON.stringify(authenticatedUser)
+    );
+    setUser(authenticatedUser);
   }
 
   function logout() {
@@ -58,15 +38,19 @@ export function AuthProvider({ children }) {
     setUser(null);
   }
 
+  const value = useMemo(
+    () => ({
+      user,
+      isAuthenticated: Boolean(user),
+      isAdmin: user?.role === "admin",
+      login,
+      logout,
+    }),
+    [user]
+  );
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        login,
-        logout,
-        isLoading,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

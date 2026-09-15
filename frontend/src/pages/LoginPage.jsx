@@ -1,87 +1,98 @@
-import { useState } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext.jsx'
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import api from "../api/client";
+import { useAuth } from "../context/AuthContext";
 
-function LoginPage() {
-  const { user, login, isLoading } = useAuth()
-  const navigate = useNavigate()
-  const location = useLocation()
+export default function LoginPage() {
+  const navigate = useNavigate();
+  const { login } = useAuth();
 
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-
-  const destination = location.state?.from?.pathname || '/dashboard'
-
-  if (user) {
-    return <Navigate to="/dashboard" replace />
-  }
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event) {
-  event.preventDefault();
-  setError("");
+    event.preventDefault();
+    setError("");
+    setIsSubmitting(true);
 
-  const result = await login({ email, password });
+    try {
+      const response = await api.post("/auth/login", {
+        email,
+        password,
+      });
 
-  if (!result.success) {
-    setError(result.message);
-    return;
+      const { accessToken, user } = response.data;
+
+      if (!accessToken || !user) {
+        throw new Error("The server returned an incomplete login response.");
+      }
+
+      login({ accessToken, user });
+
+      navigate("/dashboard", {
+        replace: true,
+      });
+    } catch (requestError) {
+      const status = requestError.response?.status;
+      const message = requestError.response?.data?.message;
+
+      if (status === 401) {
+        setError("Invalid email or password.");
+      } else if (status === 400) {
+        setError(message || "Enter a valid email and password.");
+      } else {
+        setError(
+          message ||
+            "Unable to sign in right now. Please try again."
+        );
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   }
-
-  navigate(destination, { replace: true });
-}
 
   return (
     <main className="auth-page">
-      <section className="auth-card">
-        <div className="brand-mark">CB</div>
+      <section className="auth-card" aria-labelledby="login-title">
+        <h1 id="login-title">CareBridge</h1>
+        <p>Sign in to access the patient records system.</p>
 
-        <p className="eyebrow">CareBridge Portal</p>
-        <h1>Welcome back</h1>
-        <p className="muted">
-          Sign in to securely access your care coordination workspace.
-        </p>
+        <form onSubmit={handleSubmit}>
+          <label htmlFor="email">Email</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            required
+          />
 
-        <form className="login-form" onSubmit={handleSubmit}>
-          <label htmlFor="email">
-            Work email
-            <input
-              id="email"
-              type="email"
-              placeholder="clinician@carebridge.com"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              autoComplete="email"
-              required
-            />
-          </label>
+          <label htmlFor="password">Password</label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            required
+          />
 
-          <label htmlFor="password">
-            Password
-            <input
-              id="password"
-              type="password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete="current-password"
-              required
-            />
-          </label>
+          {error && (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          )}
 
-          {error && <p className="form-error">{error}</p>}
-
-          <button className="primary-button" type="submit" disabled={isLoading}>
-            {isLoading ? "Signing in..." : "Sign in"}
+          <button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Signing in..." : "Sign in"}
           </button>
         </form>
-
-        <p className="demo-note">
-          Local demo account: admin@medsecure.local
-        </p>
       </section>
     </main>
-  )
+  );
 }
-
-export default LoginPage

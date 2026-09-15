@@ -1,5 +1,11 @@
 import jwt from "jsonwebtoken";
 
+export const ROLES = Object.freeze({
+  ADMIN: "admin",
+  CLINICIAN: "clinician",
+  STAFF: "staff",
+});
+
 export function authenticate(req, res, next) {
   const header = req.headers.authorization;
 
@@ -9,13 +15,21 @@ export function authenticate(req, res, next) {
     });
   }
 
+  const token = header.slice(7).trim();
+
+  if (!token) {
+    return res.status(401).json({
+      message: "Authentication token is required.",
+    });
+  }
+
   try {
-    req.user = jwt.verify(header.slice(7), process.env.JWT_SECRET, {
+    req.user = jwt.verify(token, process.env.JWT_SECRET, {
       issuer: "carebridge-api",
       audience: "carebridge-api",
     });
 
-    next();
+    return next();
   } catch (error) {
     console.error("JWT verification failed:", error.name, error.message);
 
@@ -23,4 +37,24 @@ export function authenticate(req, res, next) {
       message: "Invalid or expired token.",
     });
   }
+}
+
+export function authorizeRoles(...allowedRoles) {
+  const permittedRoles = new Set(allowedRoles);
+
+  return (req, res, next) => {
+    if (!req.user?.role) {
+      return res.status(403).json({
+        message: "You do not have permission to perform this action.",
+      });
+    }
+
+    if (!permittedRoles.has(req.user.role)) {
+      return res.status(403).json({
+        message: "You do not have permission to perform this action.",
+      });
+    }
+
+    return next();
+  };
 }
