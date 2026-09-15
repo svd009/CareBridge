@@ -60,9 +60,16 @@ function DashboardPage() {
 
         <div className="user-actions">
           <div>
-            <strong>Dr. Stephen Maturin</strong>
-            <span className="user-role">{user.role}</span>
+            <strong>{user?.email || "CareBridge user"}</strong>
+            <span className="user-role">{user?.role}</span>
           </div>
+
+          {user?.role === "ADMIN" && (
+            <Link className="secondary-button" to="/audit-logs">
+              Audit logs
+            </Link>
+          )}
+
           <button className="secondary-button" onClick={handleLogout}>
             Sign out
           </button>

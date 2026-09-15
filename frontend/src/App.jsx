@@ -1,8 +1,10 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
-import ProtectedRoute from './components/ProtectedRoute.jsx'
-import DashboardPage from './pages/DashboardPage.jsx'
-import LoginPage from './pages/LoginPage.jsx'
-import PatientDetailPage from './pages/PatientDetailPage.jsx'
+import { Navigate, Route, Routes } from "react-router-dom";
+import AdminRoute from "./components/AdminRoute.jsx";
+import ProtectedRoute from "./components/ProtectedRoute.jsx";
+import AuditLogsPage from "./pages/AuditLogsPage.jsx";
+import DashboardPage from "./pages/DashboardPage.jsx";
+import LoginPage from "./pages/LoginPage.jsx";
+import PatientDetailPage from "./pages/PatientDetailPage.jsx";
 
 function App() {
   return (
@@ -29,9 +31,18 @@ function App() {
         }
       />
 
+      <Route
+        path="/audit-logs"
+        element={
+          <AdminRoute>
+            <AuditLogsPage />
+          </AdminRoute>
+        }
+      />
+
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
-  )
+  );
 }
 
-export default App
+export default App;
