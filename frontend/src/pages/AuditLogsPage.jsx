@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import api from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
+const PAGE_SIZE = 10;
+
 function formatDate(value) {
   if (!value) {
     return "Not available";
@@ -24,6 +26,8 @@ function AuditLogsPage() {
   const navigate = useNavigate();
 
   const [auditLogs, setAuditLogs] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
   const [actionFilter, setActionFilter] = useState("ALL");
   const [patientSearch, setPatientSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -31,9 +35,19 @@ function AuditLogsPage() {
 
   useEffect(() => {
     async function loadAuditLogs() {
+      setIsLoading(true);
+      setError("");
+
       try {
-        const response = await api.get("/audit-logs");
+        const response = await api.get("/audit-logs", {
+          params: {
+            limit: PAGE_SIZE,
+            offset,
+          },
+        });
+
         setAuditLogs(response.data.auditLogs || []);
+        setTotal(response.data.total || 0);
       } catch (requestError) {
         const status = requestError.response?.status;
 
@@ -58,7 +72,7 @@ function AuditLogsPage() {
     }
 
     loadAuditLogs();
-  }, [logout, navigate]);
+  }, [logout, navigate, offset]);
 
   function handleLogout() {
     logout();
@@ -83,6 +97,11 @@ function AuditLogsPage() {
       return matchesAction && matchesPatient;
     });
   }, [actionFilter, auditLogs, patientSearch]);
+
+  const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const firstRecord = total === 0 ? 0 : offset + 1;
+  const lastRecord = Math.min(offset + auditLogs.length, total);
 
   return (
     <main className="app-shell">
@@ -121,9 +140,9 @@ function AuditLogsPage() {
 
         <section className="metrics-grid" aria-label="Audit log summary">
           <article className="metric-card">
-            <span>Recent events</span>
-            <strong>{auditLogs.length}</strong>
-            <small>Most recent 100 events</small>
+            <span>Audit events</span>
+            <strong>{total}</strong>
+            <small>Available activity records</small>
           </article>
 
           <article className="metric-card warning">
@@ -155,7 +174,7 @@ function AuditLogsPage() {
                   value={actionFilter}
                   onChange={(event) => setActionFilter(event.target.value)}
                 >
-                  <option value="ALL">All actions</option>
+                  <option value="ALL">All actions on this page</option>
                   {availableActions.map((action) => (
                     <option key={action} value={action}>
                       {action}
@@ -170,7 +189,7 @@ function AuditLogsPage() {
                   className="search-input"
                   type="search"
                   inputMode="numeric"
-                  placeholder="Filter by ID"
+                  placeholder="Filter this page"
                   value={patientSearch}
                   onChange={(event) => setPatientSearch(event.target.value)}
                 />
@@ -189,41 +208,81 @@ function AuditLogsPage() {
           )}
 
           {!isLoading && !error && (
-            <div className="patient-table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Timestamp</th>
-                    <th>Action</th>
-                    <th>User</th>
-                    <th>Role</th>
-                    <th>Patient ID</th>
-                    <th>IP address</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {filteredLogs.map((log) => (
-                    <tr key={log.id}>
-                      <td>{formatDate(log.created_at)}</td>
-                      <td>
-                        <span className="audit-action">{log.action}</span>
-                      </td>
-                      <td>{log.user_email || "System or unknown user"}</td>
-                      <td>{log.user_role || "Not available"}</td>
-                      <td>{getPatientId(log.metadata)}</td>
-                      <td>{log.ip_address || "Not available"}</td>
-                    </tr>
-                  ))}
-
-                  {filteredLogs.length === 0 && (
+            <>
+              <div className="patient-table-wrap">
+                <table>
+                  <thead>
                     <tr>
-                      <td colSpan="6">No audit events match the selected filters.</td>
+                      <th>Timestamp</th>
+                      <th>Action</th>
+                      <th>User</th>
+                      <th>Role</th>
+                      <th>Patient ID</th>
+                      <th>IP address</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+
+                  <tbody>
+                    {filteredLogs.map((log) => (
+                      <tr key={log.id}>
+                        <td>{formatDate(log.created_at)}</td>
+                        <td>
+                          <span className="audit-action">{log.action}</span>
+                        </td>
+                        <td>{log.user_email || "System or unknown user"}</td>
+                        <td>{log.user_role || "Not available"}</td>
+                        <td>{getPatientId(log.metadata)}</td>
+                        <td>{log.ip_address || "Not available"}</td>
+                      </tr>
+                    ))}
+
+                    {filteredLogs.length === 0 && (
+                      <tr>
+                        <td colSpan="6">
+                          No audit events match the selected filters.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="pagination-controls">
+                <p className="pagination-summary">
+                  Showing {firstRecord} to {lastRecord} of {total} events
+                </p>
+
+                <div className="pagination-actions">
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={() =>
+                      setOffset((currentOffset) =>
+                        Math.max(0, currentOffset - PAGE_SIZE)
+                      )
+                    }
+                    disabled={offset === 0}
+                  >
+                    Previous
+                  </button>
+
+                  <span className="pagination-page">
+                    Page {currentPage} of {totalPages}
+                  </span>
+
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={() =>
+                      setOffset((currentOffset) => currentOffset + PAGE_SIZE)
+                    }
+                    disabled={offset + PAGE_SIZE >= total}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </section>
       </section>

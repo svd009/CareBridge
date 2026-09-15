@@ -841,3 +841,43 @@ td strong {
     width: 100%;
   }
 }
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 20px;
+}
+
+.pagination-summary {
+  margin: 0;
+  color: #6b6477;
+  font-size: 0.88rem;
+}
+
+.pagination-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pagination-page {
+  min-width: 96px;
+  color: #5b21b6;
+  font-size: 0.84rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+@media (max-width: 620px) {
+  .pagination-controls {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

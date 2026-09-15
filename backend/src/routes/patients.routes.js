@@ -1,4 +1,5 @@
 import express from "express";
+import { z } from "zod";
 import { pool } from "../config/db.js";
 import {
   authenticate,
@@ -8,6 +9,11 @@ import {
 import { writeAuditLog } from "../services/audit.service.js";
 
 const router = express.Router();
+
+const paginationSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(10),
+  offset: z.coerce.number().int().min(0).default(0),
+});
 
 router.use(authenticate);
 
@@ -21,20 +27,32 @@ router.use(
 
 router.get("/", async (req, res, next) => {
   try {
-    const result = await pool.query(`
-      SELECT
-        id,
-        first_name,
-        last_name,
-        date_of_birth,
-        diagnosis,
-        updated_at
-      FROM patients
-      ORDER BY last_name ASC, first_name ASC
-    `);
+    const { limit, offset } = paginationSchema.parse(req.query);
+
+    const [patientsResult, countResult] = await Promise.all([
+      pool.query(
+        `
+          SELECT
+            id,
+            first_name,
+            last_name,
+            date_of_birth,
+            diagnosis,
+            updated_at
+          FROM patients
+          ORDER BY last_name ASC, first_name ASC
+          LIMIT $1 OFFSET $2
+        `,
+        [limit, offset]
+      ),
+      pool.query(`SELECT COUNT(*)::int AS total FROM patients`),
+    ]);
 
     return res.json({
-      patients: result.rows,
+      patients: patientsResult.rows,
+      total: countResult.rows[0].total,
+      limit,
+      offset,
     });
   } catch (error) {
     return next(error);
