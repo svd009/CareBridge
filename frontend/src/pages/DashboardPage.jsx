@@ -1,41 +1,54 @@
-import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext.jsx'
-
-const patients = [
-  {
-    id: '1001',
-    name: 'Ava Thompson',
-    age: 42,
-    condition: 'Hypertension monitoring',
-    status: 'Stable',
-    updated: 'Today, 10:20 AM',
-  },
-  {
-    id: '1002',
-    name: 'Noah Williams',
-    age: 67,
-    condition: 'Post-discharge follow-up',
-    status: 'Needs review',
-    updated: 'Today, 9:45 AM',
-  },
-  {
-    id: '1003',
-    name: 'Mia Garcia',
-    age: 29,
-    condition: 'Diabetes care plan',
-    status: 'Stable',
-    updated: 'Yesterday, 4:15 PM',
-  },
-]
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import api from "../api/client.js";
+import { useAuth } from "../context/AuthContext.jsx";
 
 function DashboardPage() {
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const [patients, setPatients] = useState([]);
+  const [search, setSearch] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function loadPatients() {
+      try {
+        const response = await api.get("/patients");
+        setPatients(response.data.patients);
+      } catch (requestError) {
+        if (requestError.response?.status === 401) {
+          logout();
+          navigate("/login", { replace: true });
+          return;
+        }
+
+        setError(
+          requestError.response?.data?.message ||
+            "Unable to load patient records."
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadPatients();
+  }, [logout, navigate]);
 
   function handleLogout() {
-    logout()
-    navigate('/login', { replace: true })
+    logout();
+    navigate("/login", { replace: true });
   }
+
+  const filteredPatients = patients.filter((patient) => {
+    const fullName = `${patient.first_name} ${patient.last_name}`.toLowerCase();
+
+    return (
+      fullName.includes(search.toLowerCase()) ||
+      patient.diagnosis?.toLowerCase().includes(search.toLowerCase())
+    );
+  });
 
   return (
     <main className="app-shell">
@@ -47,7 +60,7 @@ function DashboardPage() {
 
         <div className="user-actions">
           <div>
-            <strong>{user.name}</strong>
+            <strong>Dr. Stephen Maturin</strong>
             <span className="user-role">{user.role}</span>
           </div>
           <button className="secondary-button" onClick={handleLogout}>
@@ -62,93 +75,112 @@ function DashboardPage() {
             <p className="eyebrow">Care coordination</p>
             <h1>Patient dashboard</h1>
             <p className="muted">
-              Review active patients and identify records that need attention.
+              Review patient records and care information.
             </p>
           </div>
-          <button className="primary-button" type="button">
-            + Add patient
-          </button>
         </div>
 
         <section className="metrics-grid" aria-label="Patient summary">
           <article className="metric-card">
-            <span>Active patients</span>
-            <strong>24</strong>
-            <small>3 updated today</small>
+            <span>Patient records</span>
+            <strong>{patients.length}</strong>
+            <small>Available to your role</small>
           </article>
+
           <article className="metric-card warning">
-            <span>Needs review</span>
-            <strong>4</strong>
-            <small>Follow-up requested</small>
+            <span>Access level</span>
+            <strong>{user.role}</strong>
+            <small>Server-enforced role permissions</small>
           </article>
+
           <article className="metric-card success">
-            <span>Care plans current</span>
-            <strong>20</strong>
-            <small>Updated within 30 days</small>
+            <span>API status</span>
+            <strong>Live</strong>
+            <small>Connected to PostgreSQL</small>
           </article>
         </section>
 
         <section className="panel">
           <div className="panel-heading">
             <div>
-              <h2>Recent patients</h2>
-              <p className="muted">Demo records until the API is connected.</p>
+              <h2>Patient records</h2>
+              <p className="muted">
+                Records are loaded through the protected CareBridge API.
+              </p>
             </div>
+
             <input
               className="search-input"
               type="search"
-              placeholder="Search patients"
-              aria-label="Search patients"
+              placeholder="Search patient records"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
             />
           </div>
 
-          <div className="patient-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Patient</th>
-                  <th>Care focus</th>
-                  <th>Status</th>
-                  <th>Last updated</th>
-                  <th aria-label="Open record" />
-                </tr>
-              </thead>
-              <tbody>
-                {patients.map((patient) => (
-                  <tr key={patient.id}>
-                    <td>
-                      <strong>{patient.name}</strong>
-                      <span className="table-subtext">
-                        Patient ID {patient.id} · Age {patient.age}
-                      </span>
-                    </td>
-                    <td>{patient.condition}</td>
-                    <td>
-                      <span
-                        className={`status-pill ${
-                          patient.status === 'Needs review'
-                            ? 'status-warning'
-                            : 'status-success'
-                        }`}
-                      >
-                        {patient.status}
-                      </span>
-                    </td>
-                    <td>{patient.updated}</td>
-                    <td>
-                      <Link className="text-link" to={`/patients/${patient.id}`}>
-                        View record
-                      </Link>
-                    </td>
+          {isLoading && <p className="content-message">Loading patients...</p>}
+
+          {error && <p className="content-message form-error">{error}</p>}
+
+          {!isLoading && !error && (
+            <div className="patient-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Patient</th>
+                    <th>Diagnosis</th>
+                    <th>Date of birth</th>
+                    <th>Last updated</th>
+                    <th aria-label="Open record" />
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+
+                <tbody>
+                  {filteredPatients.map((patient) => (
+                    <tr key={patient.id}>
+                      <td>
+                        <strong>
+                          {patient.first_name} {patient.last_name}
+                        </strong>
+                        <span className="table-subtext">
+                          Patient ID {patient.id}
+                        </span>
+                      </td>
+
+                      <td>{patient.diagnosis || "Restricted"}</td>
+
+                      <td>
+                        {new Date(patient.date_of_birth).toLocaleDateString()}
+                      </td>
+
+                      <td>
+                        {new Date(patient.updated_at).toLocaleString()}
+                      </td>
+
+                      <td>
+                        <Link
+                          className="text-link"
+                          to={`/patients/${patient.id}`}
+                        >
+                          View record
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+
+                  {filteredPatients.length === 0 && (
+                    <tr>
+                      <td colSpan="5">No patient records found.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
       </section>
     </main>
-  )
+  );
 }
 
-export default DashboardPage
+export default DashboardPage;

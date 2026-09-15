@@ -3,7 +3,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 
 function LoginPage() {
-  const { user, login } = useAuth()
+  const { user, login, isLoading } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -17,19 +17,19 @@ function LoginPage() {
     return <Navigate to="/dashboard" replace />
   }
 
-  function handleSubmit(event) {
-    event.preventDefault()
-    setError('')
+  async function handleSubmit(event) {
+  event.preventDefault();
+  setError("");
 
-    const result = login({ email, password })
+  const result = await login({ email, password });
 
-    if (!result.success) {
-      setError(result.message)
-      return
-    }
-
-    navigate(destination, { replace: true })
+  if (!result.success) {
+    setError(result.message);
+    return;
   }
+
+  navigate(destination, { replace: true });
+}
 
   return (
     <main className="auth-page">
@@ -71,13 +71,13 @@ function LoginPage() {
 
           {error && <p className="form-error">{error}</p>}
 
-          <button className="primary-button" type="submit">
-            Sign in
+          <button className="primary-button" type="submit" disabled={isLoading}>
+            {isLoading ? "Signing in..." : "Sign in"}
           </button>
         </form>
 
         <p className="demo-note">
-          Demo mode: enter any valid email and any password.
+          Local demo account: admin@medsecure.local
         </p>
       </section>
     </main>

@@ -42,7 +42,7 @@ ON CONFLICT (email) DO NOTHING;
 
 INSERT INTO patients (first_name, last_name, date_of_birth, diagnosis, encrypted_clinical_notes)
 VALUES
-  ('Avery', 'Morgan', '1988-04-12', 'Type 2 Diabetes', NULL),
-  ('Jordan', 'Lee', '1979-11-03', 'Hypertension', NULL),
-  ('Taylor', 'Patel', '1993-07-21', 'Asthma', NULL)
+  ('Frodo', 'Patel', '1988-04-12', 'Type 2 Diabetes', NULL),
+  ('Harry', 'Claus', '1979-11-03', 'Hypertension', NULL),
+  ('Mickey', 'Holmes', '1993-07-21', 'Asthma', NULL)
 ON CONFLICT DO NOTHING;

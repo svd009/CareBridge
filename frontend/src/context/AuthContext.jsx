@@ -1,50 +1,83 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState } from "react";
+import api, {
+  clearAccessToken,
+  setAccessToken,
+} from "../api/client.js";
 
-const AuthContext = createContext(null)
+const AuthContext = createContext(null);
+
+function getSavedUser() {
+  try {
+    const savedUser = sessionStorage.getItem("carebridge_user");
+    return savedUser ? JSON.parse(savedUser) : null;
+  } catch {
+    return null;
+  }
+}
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState(getSavedUser);
+  const [isLoading, setIsLoading] = useState(false);
 
-  function login({ email, password }) {
-    if (!email || !password) {
+  async function login({ email, password }) {
+    setIsLoading(true);
+
+    try {
+      const response = await api.post("/auth/login", {
+        email,
+        password,
+      });
+
+      const { accessToken, user: authenticatedUser } = response.data;
+
+      setAccessToken(accessToken);
+      sessionStorage.setItem(
+        "carebridge_user",
+        JSON.stringify(authenticatedUser)
+      );
+      setUser(authenticatedUser);
+
+      return { success: true };
+    } catch (error) {
+      clearAccessToken();
+      setUser(null);
+
       return {
         success: false,
-        message: 'Enter both your email address and password.',
-      }
-    }
-
-    const demoUser = {
-      id: 1,
-      name: 'Dr. Jordan Miller',
-      email,
-      role: 'Clinician',
-    }
-
-    setUser(demoUser)
-
-    return {
-      success: true,
-      user: demoUser,
+        message:
+          error.response?.data?.message ||
+          "Unable to sign in. Please try again.",
+      };
+    } finally {
+      setIsLoading(false);
     }
   }
 
   function logout() {
-    setUser(null)
+    clearAccessToken();
+    setUser(null);
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        login,
+        logout,
+        isLoading,
+      }}
+    >
       {children}
     </AuthContext.Provider>
-  )
+  );
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext)
+  const context = useContext(AuthContext);
 
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider.')
+    throw new Error("useAuth must be used within an AuthProvider.");
   }
 
-  return context
+  return context;
 }

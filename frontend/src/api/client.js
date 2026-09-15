@@ -1,17 +1,31 @@
 import axios from "axios";
 
-const client = axios.create({
-  baseURL: import.meta.env.VITE_API_URL
+let accessToken = sessionStorage.getItem("carebridge_access_token");
+
+export function setAccessToken(token) {
+  accessToken = token;
+  sessionStorage.setItem("carebridge_access_token", token);
+}
+
+export function clearAccessToken() {
+  accessToken = null;
+  sessionStorage.removeItem("carebridge_access_token");
+  sessionStorage.removeItem("carebridge_user");
+}
+
+const api = axios.create({
+  baseURL: "http://localhost:5000/api",
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
-client.interceptors.request.use((config) => {
-  const token = localStorage.getItem("medsecure_token");
-
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+api.interceptors.request.use((config) => {
+  if (accessToken) {
+    config.headers.Authorization = `Bearer ${accessToken}`;
   }
 
   return config;
 });
 
-export default client;
+export default api;

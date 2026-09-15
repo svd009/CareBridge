@@ -1,82 +1,81 @@
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext.jsx'
-
-const patientRecords = {
-  1001: {
-    name: 'Ava Thompson',
-    initials: 'AT',
-    age: 42,
-    dateOfBirth: 'May 14, 1984',
-    patientId: '1001',
-    status: 'Stable',
-    careFocus: 'Hypertension monitoring',
-    clinician: 'Dr. Jordan Miller',
-    allergies: 'Penicillin',
-    medications: ['Lisinopril 10 mg — once daily', 'Vitamin D3 1,000 IU — once daily'],
-    notes:
-      'Blood-pressure readings remain within the agreed target range. Continue home monitoring and review readings at the next scheduled follow-up.',
-  },
-  1002: {
-    name: 'Noah Williams',
-    initials: 'NW',
-    age: 67,
-    dateOfBirth: 'August 2, 1959',
-    patientId: '1002',
-    status: 'Needs review',
-    careFocus: 'Post-discharge follow-up',
-    clinician: 'Dr. Jordan Miller',
-    allergies: 'No known allergies',
-    medications: ['Metformin 500 mg — twice daily', 'Atorvastatin 20 mg — once daily'],
-    notes:
-      'Follow-up call is pending after discharge. Confirm medication access, review symptoms, and arrange the next care-coordination check-in.',
-  },
-  1003: {
-    name: 'Mia Garcia',
-    initials: 'MG',
-    age: 29,
-    dateOfBirth: 'November 8, 1996',
-    patientId: '1003',
-    status: 'Stable',
-    careFocus: 'Diabetes care plan',
-    clinician: 'Dr. Jordan Miller',
-    allergies: 'Latex',
-    medications: ['Insulin glargine — as prescribed', 'Metformin 500 mg — twice daily'],
-    notes:
-      'Care-plan goals were reviewed. Continue glucose monitoring and bring the next log to the scheduled appointment.',
-  },
-}
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import api from "../api/client.js";
+import { useAuth } from "../context/AuthContext.jsx";
 
 function PatientDetailPage() {
-  const { patientId } = useParams()
-  const navigate = useNavigate()
-  const { logout } = useAuth()
+  const { patientId } = useParams();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
 
-  const patient = patientRecords[patientId]
+  const [patient, setPatient] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function loadPatient() {
+      try {
+        const response = await api.get(`/patients/${patientId}`);
+        setPatient(response.data.patient);
+      } catch (requestError) {
+        if (requestError.response?.status === 401) {
+          logout();
+          navigate("/login", { replace: true });
+          return;
+        }
+
+        if (requestError.response?.status === 404) {
+          setError("Patient record not found.");
+          return;
+        }
+
+        setError(
+          requestError.response?.data?.message ||
+            "Unable to load the patient record."
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadPatient();
+  }, [patientId, logout, navigate]);
 
   function handleLogout() {
-    logout()
-    navigate('/login', { replace: true })
+    logout();
+    navigate("/login", { replace: true });
   }
 
-  if (!patient) {
+  if (isLoading) {
+    return (
+      <main className="empty-page">
+        <section className="empty-card">
+          <p className="eyebrow">CareBridge</p>
+          <h1>Loading patient record</h1>
+          <p className="muted">Retrieving the protected patient record.</p>
+        </section>
+      </main>
+    );
+  }
+
+  if (error || !patient) {
     return (
       <main className="empty-page">
         <section className="empty-card">
           <p className="eyebrow">CareBridge</p>
           <h1>Patient not found</h1>
-          <p className="muted">
-            This demo patient record does not exist.
-          </p>
+          <p className="muted">{error || "This patient record does not exist."}</p>
           <Link className="primary-button link-button" to="/dashboard">
             Return to dashboard
           </Link>
         </section>
       </main>
-    )
+    );
   }
 
-  const statusClass =
-    patient.status === 'Needs review' ? 'status-warning' : 'status-success'
+  const initials = `${patient.first_name?.[0] || ""}${
+    patient.last_name?.[0] || ""
+  }`;
 
   return (
     <main className="app-shell">
@@ -87,9 +86,15 @@ function PatientDetailPage() {
         </Link>
 
         <div className="user-actions">
+          <div>
+            <strong>Dr. Stephen Maturin</strong>
+            <span className="user-role">admin</span>
+          </div>
+
           <Link className="secondary-button link-button" to="/dashboard">
             Dashboard
           </Link>
+
           <button className="secondary-button" onClick={handleLogout}>
             Sign out
           </button>
@@ -102,64 +107,53 @@ function PatientDetailPage() {
         </Link>
 
         <section className="patient-hero">
-          <div className="patient-avatar">{patient.initials}</div>
+          <div className="patient-avatar">{initials}</div>
+
           <div>
-            <p className="eyebrow">Patient record</p>
-            <h1>{patient.name}</h1>
+            <p className="eyebrow">Protected patient record</p>
+            <h1>
+              {patient.first_name} {patient.last_name}
+            </h1>
             <p className="muted">
-              Patient ID {patient.patientId} · Age {patient.age} · DOB{' '}
-              {patient.dateOfBirth}
+              Patient ID {patient.id} · Date of birth{" "}
+              {new Date(patient.date_of_birth).toLocaleDateString()}
             </p>
           </div>
-          <span className={`status-pill ${statusClass}`}>
-            {patient.status}
-          </span>
         </section>
 
         <section className="detail-grid">
           <article className="panel">
             <h2>Care summary</h2>
+
             <dl className="details-list">
               <div>
-                <dt>Care focus</dt>
-                <dd>{patient.careFocus}</dd>
+                <dt>Diagnosis</dt>
+                <dd>{patient.diagnosis || "Restricted for your role"}</dd>
               </div>
+
               <div>
-                <dt>Primary clinician</dt>
-                <dd>{patient.clinician}</dd>
+                <dt>Last updated</dt>
+                <dd>{new Date(patient.updated_at).toLocaleString()}</dd>
               </div>
+
               <div>
-                <dt>Allergies</dt>
-                <dd>{patient.allergies}</dd>
+                <dt>Record access</dt>
+                <dd>Server-authorized access</dd>
               </div>
             </dl>
           </article>
 
           <article className="panel">
-            <h2>Current medications</h2>
-            <ul className="medication-list">
-              {patient.medications.map((medication) => (
-                <li key={medication}>{medication}</li>
-              ))}
-            </ul>
+            <h2>Clinical notes</h2>
+            <p className="care-note">
+              {patient.clinical_notes ||
+                "No clinical notes are available for this record."}
+            </p>
           </article>
-        </section>
-
-        <section className="panel note-panel">
-          <div className="panel-heading">
-            <div>
-              <h2>Latest care note</h2>
-              <p className="muted">Demo content — API connection comes next.</p>
-            </div>
-            <button className="secondary-button" type="button">
-              Add note
-            </button>
-          </div>
-          <p className="care-note">{patient.notes}</p>
         </section>
       </section>
     </main>
-  )
+  );
 }
 
-export default PatientDetailPage
+export default PatientDetailPage;
